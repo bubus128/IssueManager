@@ -1,7 +1,6 @@
-﻿namespace IssueManager.Core
-{
-	public class Class1
-	{
+﻿namespace IssueManager.Core;
 
-	}
+public class Class1
+{
+
 }
