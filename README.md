@@ -11,6 +11,13 @@
 4. Run using IIS Expres (Dockerization in progress 😁)
 5. Goto http://localhost/swagger to see endpoints
 
+## Api parameters description
+1. Source: source of issues (put GitHub or GitLab here)
+2. Owner: repo owner (user or group)
+3. Repo: repo name
+4. IssueNumer: issue number 😁
+
+
 [linkedin-badge]: https://img.shields.io/badge/LinkedIn-Świsłocki-blue?logo=linkedin
 [linkedin-url]: https://www.linkedin.com/in/jakub-swislocki/
 
