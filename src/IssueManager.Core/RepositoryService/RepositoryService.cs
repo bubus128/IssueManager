@@ -17,12 +17,22 @@ public class RepositoryService
 		[FromKeyedServices("GitLab")] IRequestFactory gitLabRequestFactory
 	) : IRepositoryService
 {
+	/// <summary>
+	/// A dictionary mapping source types (GitHub, GitLab) to their corresponding request factories.
+	/// </summary>
 	private Dictionary<SourceType, IRequestFactory> _requestFactories = new()
 	{
 		{SourceType.GitHub, githubRequestFactory},
 		{SourceType.GitLab, gitLabRequestFactory}
 	};
 
+	/// <summary>
+	/// Closes an issue in a given repository.
+	/// </summary>
+	/// <param name="source">The source (GitHub or GitLab)</param>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <param name="issueNumber">The issue number</param>
 	public async Task CloseIssue(SourceType source, string owner, string repo, int issueNumber)
 	{
 		var requestFactory = _requestFactories[source];
@@ -50,6 +60,11 @@ public class RepositoryService
 		}
 	}
 
+	/// <summary>
+	/// Retrieves all issues from a given repository.
+	/// </summary>
+	/// <param name="source">The source (GitHub or GitLab)</param>
+	/// <returns>A list of issues</returns>
 	public async Task<List<IIssue>> GetAllIssues(SourceType source)
 	{
 		var requestFactory = _requestFactories[source];
@@ -76,6 +91,14 @@ public class RepositoryService
 		}
 	}
 
+	/// <summary>
+	/// Retrieves details of a single issue from a given repository.
+	/// </summary>
+	/// <param name="source">The source (GitHub or GitLab)</param>
+	/// <param name="issueNumber">The issue number</param>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <returns>The issue details</returns>
 	public async Task<IIssue> GetIssue(SourceType source, int issueNumber, string owner, string repo)
 	{
 		var requestFactory = _requestFactories[source];
@@ -95,7 +118,7 @@ public class RepositoryService
 			}
 
 			var json = await response.Content.ReadAsStringAsync();
-			var issue = JsonSerializer.Deserialize<GithubIssue>(json,
+			var issue = JsonSerializer.Deserialize<Issue>(json,
 				new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 			return issue ?? throw new IssueNotFoundException();
@@ -107,6 +130,14 @@ public class RepositoryService
 		}
 	}
 
+	/// <summary>
+	/// Creates a new issue in a given repository.
+	/// </summary>
+	/// <param name="issue">The issue to be created</param>
+	/// <param name="source">The source (GitHub or GitLab)</param>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <returns>The created issue</returns>
 	public async Task<IIssue?> CreateIssue(IIssue issue, SourceType source, string owner, string repo)
 	{
 		var requestFactory = _requestFactories[source];
@@ -130,7 +161,7 @@ public class RepositoryService
 			}
 
 			var json = await response.Content.ReadAsStringAsync();
-			var createdIssue = JsonSerializer.Deserialize<GithubIssue>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+			var createdIssue = JsonSerializer.Deserialize<Issue>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 			return createdIssue;
 		}
@@ -141,6 +172,15 @@ public class RepositoryService
 		}
 	}
 
+	/// <summary>
+	/// Updates an existing issue in a given repository.
+	/// </summary>
+	/// <param name="issue">The issue with updated details</param>
+	/// <param name="source">The source (GitHub or GitLab)</param>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <param name="issueNumber">The issue number</param>
+	/// <returns>The updated issue</returns>
 	public async Task<IIssue?> UpdateIssue(IIssue issue, SourceType source, string owner, string repo, int issueNumber)
 	{
 		var requestFactory = _requestFactories[source];
@@ -164,7 +204,7 @@ public class RepositoryService
 			}
 
 			var json = await response.Content.ReadAsStringAsync();
-			var updatedIssue = JsonSerializer.Deserialize<GithubIssue>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+			var updatedIssue = JsonSerializer.Deserialize<Issue>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 			return updatedIssue;
 		}
