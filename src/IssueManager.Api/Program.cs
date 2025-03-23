@@ -141,7 +141,7 @@ app.MapPost("/issues/{source}/{owner}/{repo}", async (string source, string owne
 	Tags = new List<OpenApiTag> { new() { Name = "Create issue" } }
 });
 
-app.MapPut("/issues/{source}/{owner}/{repo}/{id}", (string source, string owner, string repo, int number, UpdateIssueRequest updateIssueRequest, IRepositoryService repositoryService) =>
+app.MapPut("/issues/{source}/{owner}/{repo}/{issueNumer}", async (string source, string owner, string repo, int issueNumer, UpdateIssueRequest updateIssueRequest, IRepositoryService repositoryService) =>
 {
 	if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
 	{
@@ -150,7 +150,7 @@ app.MapPut("/issues/{source}/{owner}/{repo}/{id}", (string source, string owner,
 	try
 	{
 		var issue = new Issue { Title = updateIssueRequest.Title, Description = updateIssueRequest.Body };
-		return Results.Ok(repositoryService.UpdateIssue(issue, sourceType, owner, repo, number));
+		return Results.Ok(await repositoryService.UpdateIssue(issue, sourceType, owner, repo, issueNumer));
 	}
 	catch (IssueNotFoundException)
 	{
