@@ -7,6 +7,10 @@ using System.Net.Http.Json;
 namespace IssueManager.Core.RequestFactory;
 public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IRequestFactory
 {
+	/// <summary>
+	/// Creates a basic HttpRequestMessage object with the required headers.
+	/// In this case, we set the authorization header, User-Agent, and accepted MIME type.
+	/// </summary>
 	public HttpRequestMessage CreateBaseRequest()
 	{
 		var request = new HttpRequestMessage();
@@ -16,6 +20,9 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		return request;
 	}
 
+	/// <summary>
+	/// Creates an HTTP request to get all issues from a repository.
+	/// </summary>
 	public HttpRequestMessage CreateGetAllRequest()
 	{
 		var request = CreateBaseRequest();
@@ -24,6 +31,12 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		return request;
 	}
 
+	/// <summary>
+	/// Creates an HTTP request to get the details of a single issue.
+	/// </summary>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <param name="issueNumber">The issue number</param>
 	public HttpRequestMessage CreateGetRequest(string owner, string repo, int issueNumber)
 	{
 		var request = CreateBaseRequest();
@@ -32,6 +45,12 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		return request;
 	}
 
+	/// <summary>
+	/// Creates an HTTP request to close an issue.
+	/// </summary>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <param name="issueNumber">The issue number</param>
 	public HttpRequestMessage CreateCloseRequest(string owner, string repo, int issueNumber)
 	{
 		var request = CreateBaseRequest();
@@ -42,6 +61,12 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		return request;
 	}
 
+	/// <summary>
+	/// Creates an HTTP request to update an existing issue.
+	/// </summary>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
+	/// <param name="issueNumber">The issue number</param>
 	public HttpRequestMessage CreatePatchRequest(string owner, string repo, int issueNumber)
 	{
 		var request = CreateBaseRequest();
@@ -50,6 +75,11 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		return request;
 	}
 
+	/// <summary>
+	/// Creates an HTTP request to create a new issue in a repository.
+	/// </summary>
+	/// <param name="owner">The name of the owner (namespace)</param>
+	/// <param name="repo">The name of the repository/project</param>
 	public HttpRequestMessage CreatePostRequest(string owner, string repo)
 	{
 		var request = CreateBaseRequest();
@@ -57,5 +87,4 @@ public class GitHubRequestFactory(IOptions<GitHubSourceConfig> options) : IReque
 		request.RequestUri = new($"{options.Value.ApiBaseUrl}/repos/{owner}/{repo}/issues");
 		return request;
 	}
-
 }
