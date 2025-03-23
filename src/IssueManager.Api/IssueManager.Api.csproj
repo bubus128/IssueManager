@@ -16,6 +16,15 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="8.0.0" />
   </ItemGroup>
 
+<ItemGroup>
+	<None Update="appsettings.json">
+		<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	</None>
+	<None Update="appsettings.Local.json">
+		<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	</None>
+</ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\IssueManager.Core\IssueManager.Core.csproj" />
   </ItemGroup>

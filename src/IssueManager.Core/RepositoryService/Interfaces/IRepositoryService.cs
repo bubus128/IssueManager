@@ -1,12 +1,13 @@
-﻿using IssueManager.Core.Models.Interfaces;
+﻿using IssueManager.Core.Enums;
+using IssueManager.Core.Models.Interfaces;
 
 namespace IssueManager.Core.RepositoryService.Interfaces;
 
 public interface IRepositoryService
 {
-	public Task<List<IIssue>> GetAllIssues();
-	public Task<IIssue> GetIssueById<T>(T id);
-	public Task<T> UpdateIssue<T>(IIssue issue);
-	public Task<T> CreateIssue<T>(IIssue issue);
-	public Task DeleteIssue<T>(T id);
+	public Task<List<IIssue>> GetAllIssues(SourceType source);
+	public Task<IIssue> GetIssue(SourceType source, int issueNumber, string owner, string repo);
+	public Task<IIssue?> UpdateIssue(IIssue issue, SourceType source, string owner, string repo, int number);
+	public Task<IIssue?> CreateIssue(IIssue issue, SourceType source, string owner, string repo);
+	public Task CloseIssue(SourceType source, string owner, string repo, int issueNumber);
 }

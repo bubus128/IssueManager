@@ -1,26 +1,45 @@
+using IssueManager.Api.Contracts.Requests;
+using IssueManager.Core.Configuration;
+using IssueManager.Core.Enums;
 using IssueManager.Core.Exceptions;
-using IssueManager.Core.Models.Interfaces;
+using IssueManager.Core.Models;
 using IssueManager.Core.RepositoryService;
 using IssueManager.Core.RepositoryService.Interfaces;
+using IssueManager.Core.RequestFactory;
+using IssueManager.Core.RequestFactory.Interfaces;
 using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register OpenApi for endpoint documentation
 builder.Services.AddOpenApi();
 
-// Add services to the container.
+// Register HttpClient for sending http requests
+builder.Services.AddHttpClient();
+
+// Register configs
+builder.Services.Configure<GitHubSourceConfig>(builder.Configuration.GetSection(GitHubSourceConfig.Name));
+builder.Services.Configure<GitLabSourceConfig>(builder.Configuration.GetSection(GitLabSourceConfig.Name));
+
+// RegisterServices
 builder.Services.AddSingleton<IRepositoryService, RepositoryService>();
+builder.Services.AddKeyedSingleton<IRequestFactory, GitHubRequestFactory>("GitHub");
+builder.Services.AddKeyedSingleton<IRequestFactory, GitLabRequestFactory>("GitLab");
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-app.MapGet("/issues", async Task<IResult> (IRepositoryService repositoryService) =>
+app.MapGet("/issuess/{source}", async Task<IResult> (string source, IRepositoryService repositoryService) =>
 {
+	if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
+	{
+		return TypedResults.BadRequest("Invalid source. Allowed values: GitHub, GitLab.");
+	}
 	try
 	{
-		return TypedResults.Ok(await repositoryService.GetAllIssues());
+		return TypedResults.Ok(await repositoryService.GetAllIssues(sourceType));
 	}
 	catch (Exception exception)
 	{
@@ -36,19 +55,27 @@ app.MapGet("/issues", async Task<IResult> (IRepositoryService repositoryService)
 	Tags = new List<OpenApiTag> { new() { Name = "All issues" } }
 });
 
-app.MapGet("/issues/{id}", async Task<IResult> (int id, IRepositoryService repositoryService) =>
+app.MapGet("/issues/{source}/{owner}/{repo}/{issueNumber}", async Task<IResult> (string source, string owner, string repo, int issueNumber, IRepositoryService repositoryService) =>
 {
+	if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
+	{
+		return TypedResults.BadRequest("Invalid source. Allowed values: GitHub, GitLab.");
+	}
 	try
 	{
-		return TypedResults.Ok(await repositoryService.GetIssueById(id));
+		return TypedResults.Ok(await repositoryService.GetIssue(sourceType, issueNumber, owner, repo));
+	}
+	catch (IssueNotFoundException)
+	{
+		return TypedResults.NotFound($"Issue {issueNumber} not found in {owner} / {repo}.");
 	}
 	catch (Exception exception)
 	{
-		Console.Error.WriteLine($"Error getting issue with ID {id}: {exception.Message}");
-		return TypedResults.Problem($"An unexpected error occurred while getting issue with ID: {id}.", statusCode: 500);
+		Console.Error.WriteLine($"Error getting issue  {issueNumber}  from  {owner} / {repo}: {exception.Message}");
+		return TypedResults.Problem($"An unexpected error occurred while getting issue with ID: {issueNumber}.", statusCode: 500);
 	}
 })
-.WithName("GetIssueById")
+.WithName("GetIssue")
 .WithOpenApi(x => new OpenApiOperation(x)
 {
 	Summary = "Get issue by ID",
@@ -56,43 +83,57 @@ app.MapGet("/issues/{id}", async Task<IResult> (int id, IRepositoryService repos
 	Tags = new List<OpenApiTag> { new() { Name = "Issue by ID" } }
 });
 
-app.MapDelete("/issues/{id}", async Task<IResult> (int id, IRepositoryService repositoryService) =>
+app.MapPatch("/issues/{source}/{owner}/{repo}/{issueNumber}", async Task<IResult> (string source, string owner, string repo, int issueNumber, IRepositoryService repositoryService, bool? close) =>
 {
-	try
+	if (close.HasValue)
 	{
-		await repositoryService.DeleteIssue(id);
-	}
-	catch (IssueNotFoundException)
-	{
-		return TypedResults.NotFound($"Issue with ID {id} not found.");
-	}
-	catch (Exception exception)
-	{
-		Console.Error.WriteLine($"Error deleting issue {id}: {exception.Message}");
-		return TypedResults.Problem("An unexpected error occurred while deleting the issue.", statusCode: 500);
-	}
-	return TypedResults.Ok($"Issue with ID {id} deleted successfully.");
-})
-.WithName("DeleteIssue").WithOpenApi(x => new OpenApiOperation(x)
-{
-	Summary = "Delete issue by ID",
-	Description = "Deletes an issue with given ID.",
-	Tags = new List<OpenApiTag> { new() { Name = "Delete issue" } }
-});
-
-app.MapPost("/issues", async (IIssue issue, IRepositoryService repositoryService) =>
-	{
+		if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
+		{
+			return TypedResults.BadRequest("Invalid source. Allowed values: GitHub, GitLab.");
+		}
 		try
 		{
-			var id = await repositoryService.CreateIssue<int>(issue);
-			return Results.Created($"/issues/{id}", new { Id = id });
+			await repositoryService.CloseIssue(sourceType, owner, repo, issueNumber);
+		}
+		catch (IssueNotFoundException)
+		{
+			return TypedResults.NotFound($"Issue with ID {issueNumber} not found.");
 		}
 		catch (Exception exception)
 		{
-			Console.Error.WriteLine($"Error creating issue: {exception.Message}");
-			return TypedResults.Problem("An unexpected error occurred while creating the issue.", statusCode: 500);
+			Console.Error.WriteLine($"Error closing issue {issueNumber}: {exception.Message}");
+			return TypedResults.Problem("An unexpected error occurred while closing the issue.", statusCode: 500);
 		}
+		return TypedResults.Ok($"Issue with ID {issueNumber} closed successfully.");
 	}
+	return TypedResults.BadRequest("Invalid request. No valid action specified.");
+})
+.WithName("UpdateIssueStatus")
+.WithOpenApi(x => new OpenApiOperation(x)
+{
+	Summary = "Update issue status by ID",
+	Description = "Updates an issue with given ID. Use the 'close' query parameter to close the issue.",
+	Tags = new List<OpenApiTag> { new() { Name = "Update issue" } }
+});
+
+app.MapPost("/issues/{source}/{owner}/{repo}", async (string source, string owner, string repo, CreateIssueRequest createIssueRequest, IRepositoryService repositoryService) =>
+{
+	if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
+	{
+		return TypedResults.BadRequest("Invalid source. Allowed values: GitHub, GitLab.");
+	}
+	try
+	{
+		var issue = new Issue { Title = createIssueRequest.Title, Description = createIssueRequest.Body };
+		var id = await repositoryService.CreateIssue(issue, sourceType, owner, repo);
+		return Results.Created($"/issues/{id}", new { Id = id });
+	}
+	catch (Exception exception)
+	{
+		Console.Error.WriteLine($"Error creating issue: {exception.Message}");
+		return TypedResults.Problem("An unexpected error occurred while creating the issue.", statusCode: 500);
+	}
+}
 ).WithName("CreateIssue").WithOpenApi(x => new OpenApiOperation(x)
 {
 	Summary = "Create issue",
@@ -100,13 +141,16 @@ app.MapPost("/issues", async (IIssue issue, IRepositoryService repositoryService
 	Tags = new List<OpenApiTag> { new() { Name = "Create issue" } }
 });
 
-app.MapPut("/issues/{id}", async (IIssue issue, IRepositoryService repositoryService) =>
+app.MapPut("/issues/{source}/{owner}/{repo}/{id}", (string source, string owner, string repo, int number, UpdateIssueRequest updateIssueRequest, IRepositoryService repositoryService) =>
 {
+	if (!Enum.TryParse<SourceType>(source, true, out var sourceType))
+	{
+		return TypedResults.BadRequest("Invalid source. Allowed values: GitHub, GitLab.");
+	}
 	try
 	{
-		var id = await repositoryService.UpdateIssue<int>(issue);
-
-		return Results.NoContent();
+		var issue = new Issue { Title = updateIssueRequest.Title, Description = updateIssueRequest.Body };
+		return Results.Ok(repositoryService.UpdateIssue(issue, sourceType, owner, repo, number));
 	}
 	catch (IssueNotFoundException)
 	{
